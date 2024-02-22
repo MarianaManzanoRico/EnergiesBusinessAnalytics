@@ -1,0 +1,3006 @@
+---
+title: "World Energy"
+author: "Mariana Manzano Rico"
+date: "2023-04-25"
+output: 
+  html_document:
+    toc: TRUE
+    toc_depth: 5
+    toc_float:
+      collapsed: FALSE
+      smooth_scroll: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+# **Abstract**
+
+Humans are always looking for energy since it is crucial for every process around us, we can’t move, produce, build, or do anything without it, even our bodies need it to survive. That’s why different types of energy around the world exist, some older like petroleum or coal, and other new ones such as solar and wind energy. However, the consumption and production of these energies vary from country to country, it depends on other factors like investment, GDP, equipment, people, research, and obviously, the source to exist in the territory. 
+
+We also need to consider that even if energy is crucial for our lives, how people produce it (and use it) is not the best and has big consequences for our environment. Governments, organizations, and enterprises know it and that it must change, so they are looking for new ways and more friendly with the environment to produce energy and take it to every person in the easiest possible way.
+
+# **Introduction**
+
+In this case, we have the next problem situation: A company named AK Nacional del Monte, which provides energy for the retail industry needs to know whether it’s best to produce energy with new and renewable methods, to do it in the old way, or both, specifically for Brazil, Canada, Mexico, Haiti, and Venezuela. We, as data analysts, will consider different variables such as consumption of different energy types, production, intensity, GDP, CO2 emissions, and prices, which will be presented in this report.
+
+# **Objectives**
+
+*  Clean the whole databases that will be used for the analysis by following the correct steps in order to don’t make any mistakes and get the most precise information.
+* Analyze each variable of the dataset so we can find insights inside that data.
+* Comprehend with the help of charts and graphs the information that we are seeing to find patterns in data.
+* With the whole analysis, give the best recommendations based on the actual information so the client can take the best decisions to have benefits for his enterprise.
+
+```{r, include=FALSE}
+
+rm(list=ls())
+
+library(dplyr)
+library(forcats)
+library(ggplot2)
+library(naniar)
+library(assertive)
+library(purrr)
+library(stringr)
+library(simputation)
+library(tidyr)
+library(purrr)
+library(tidyverse)
+library(scales)
+
+options(scipen = 999, digits = 3)
+
+energy_or<-read.csv("SP_energy.csv")
+consumption_or<-read.csv("SP_World Energy_Consumption.csv")
+statistics_or<-read.csv("SP_WorldE_all_energy_statistics.csv")
+
+```
+
+# **Description of the variables**
+
+For this, we will use three databases named Energy, Consumption, and Statistics. The first one gives us information about consumption, production, and data of each country from 1980 to 2019, the second one has information about different energy types such as oil, solar, wind, and other renewables from 1900 to 2019. Finally, the third one gives us information about the transactions made by each country for different commodities such as coal, natural gas, and petroleum from 1990 to 2014. It is important to say that we won’t mention units of measurement because these databases don’t specify it.  The next lines are a few of each database:
+
+```{r, echo=FALSE, results=TRUE}
+glimpse(energy_or)
+glimpse(consumption_or)
+glimpse(statistics_or)
+```
+
+However, these databases must be cleaned to make a good analysis of each variable. In this report we won’t give deep explanations of what we did because it is not the main purpose, however, it is necessary to understand what we did to clean the databases and the decisions we took based on what to understand the origin of the final databases.
+
+We did the cleansing process for each database as it is seen in the following lines. 
+
+# **Cleansing Data Bases and Selecting Data**
+
+### **Data Type**
+
+First, we had to change the data type of some variables, from numeric to factor or from character to numeric, for each database. The next tables show the final data type for each column.
+
+**Energy**
+
+```{r}
+#Country<-fct
+#Energy_type<-fct
+#Year<-fct
+
+energy<-energy_or%>%
+  mutate(Country=as.factor(Country), Energy_type=as.factor(Energy_type), Year=as.factor(Year))
+
+glimpse(energy)
+
+```
+
+**Consumption**
+
+```{r}
+
+## Select the necesary
+#iso_code:year, oil_consumption, other_renewable_consumption, renewable_consumption, wind_consumption, solar_consumption.
+
+#iso_code<-fct
+#country<-fct
+#year<-fct
+
+consumption<-consumption_or%>%
+  select(iso_code:year, oil_consumption, other_renewable_consumption, renewables_consumption, wind_consumption, solar_consumption)%>%
+  mutate(iso_code=as.factor(iso_code), country=as.factor(country), year=as.factor(year))
+
+glimpse(consumption)
+
+```
+
+**Statistics**
+
+```{r}
+
+#Unselect quantity_footnotes
+
+#country_or_area<-fct
+#commodity_transaction<-fct
+#year<-fct
+#unit<-fct
+#category<-fct
+
+statistics<-statistics_or%>%
+  select(-quantity_footnotes)%>%
+  mutate(country_or_area=as.factor(country_or_area), commodity_transaction=as.factor(commodity_transaction), year=as.factor(year), unit=as.factor(unit), category=as.factor(category))
+
+glimpse(statistics)
+
+```
+
+### **Filter Data**
+
+At this point, we decided to select only the crucial data for our analysis, this means that we only select the countries that we will study in this report (Brazil, Canada, Venezuela, Mexico, and Haiti). 
+
+```{r}
+#Mexico, Brazil, Canada, Venezuela, and Haiti.
+#Energy in the old fashion way, shift to different production methods
+```
+
+```{r}
+
+### **Energy**
+
+energy<-energy%>%
+  filter(Country %in% c("Mexico", "Brazil", "Canada", "Venezuela", "Haiti"))
+
+```
+
+```{r}
+
+#Consumption
+
+consumption<-consumption%>%
+  filter(country %in% c("Mexico", "Brazil", "Canada", "Venezuela", "Haiti"))
+
+```
+
+```{r}
+
+#Statistics
+
+statistics<-statistics%>%
+  filter(country_or_area %in% c("Mexico", "Brazil", "Canada", "Venezuela", "Haiti"), str_detect(category, "coal") |  str_detect(category, "natural_gas") | str_detect(category, "nuclear") | str_detect(category, "petroleum") | str_detect(category, "renewables") | str_detect(category, "oil") | str_detect(category, "wind") | str_detect(category, "solar"), str_detect(commodity_transaction, "final consumption"), !str_detect(commodity_transaction, "Other bituminous coal"), !str_detect(commodity_transaction, "Coking coal"), !str_detect(commodity_transaction, "Hard coal"), !str_detect(commodity_transaction, "White spirit and special boiling point industrial spirits"))
+
+#Use "contains" in category
+  #All energy
+  #coal
+  #natural_gas
+  #nuclear
+  #petroleum
+  #renewables
+  #oil
+  #wind
+  #solar
+
+```
+
+The final databases are the following ones: 
+
+```{r}
+head(energy)
+head(consumption)
+head(statistics)
+```
+
+### **Uniqueness Restrictions**
+
+We also needed to know if there were complete or partial duplications of registries, but we found there are not any duplicates, so we didn’t have to do anything more in this step.
+
+```{r, results='hide'}
+
+### Complete duplicates
+
+sum(duplicated(energy))
+sum(duplicated(consumption))
+sum(duplicated(statistics))
+
+```
+
+```{r, results='hide'}
+
+### Partial duplicates
+### **Energy**
+
+dup_x <- energy %>% 
+  count(X) %>% 
+  filter(n > 1)
+dup_x
+
+```
+
+### **Category review**
+
+The category review means every category to be correctly presented in the database (for example, having `natural_gas` and `Natural_gas` is not the same in R). We checked each category of each database in order to confirm we don’t have to do any category collapse. However, we found we don’t have any problems related to categories.
+
+```{r, results='hide'}
+
+### **Energy**
+
+#Country
+#Energy_type
+
+sumcounen <-energy%>%
+  count(Country)
+
+sumcounen
+
+sumeneren<-energy%>%
+  count(Energy_type)
+
+sumeneren
+
+```
+
+```{r, results='hide'}
+### **Consumption**
+#country
+#iso_code
+
+sumcouncon <-consumption%>%
+  count(country)
+
+sumcouncon
+
+isocon <-consumption%>%
+  count(iso_code)
+
+isocon
+
+```
+
+```{r, results='hide'}
+### **Statistics**
+#country_or_area
+#commodity_transaction
+#year
+#unit
+#category
+
+counst <-statistics%>%
+  count(country_or_area)
+
+counst
+
+comst <-statistics%>%
+  count(commodity_transaction)
+
+comst
+
+yeast <-statistics%>%
+  count(year)
+
+yeast
+
+unist <-statistics%>%
+  count(unit)
+
+unist
+
+catst <-statistics%>%
+  count(category)
+
+catst
+
+#commodity_transaction
+   # brown coal
+   #others white spirit...
+
+```
+
+### **Missing Data**
+
+The biggest problem that we found in these databases is the missing data, so we had to do a really hard work to complete the data and do it correctly. This is the section in which we will explain most of the corrections we made and the decisions we took. 
+
+First, we calculate the number of NAs in each database as well as the proportion. 
+
+**Energy**
+
+```{r}
+
+n_miss(energy)
+prop_miss(energy)
+
+```
+
+**Consumption**
+
+```{r}
+
+n_miss(consumption)
+prop_miss(consumption)
+
+```
+
+**Statistics**
+
+```{r}
+
+n_miss(statistics)
+prop_miss(statistics)
+
+```
+
+In Statistics we see there are no NAs, so we won’t change anything until next steps.
+
+```{r, results='hide'}
+
+### Missing Data summary
+
+### **Energy**
+
+miss_var_summary(energy)
+miss_case_summary(energy)
+miss_var_table(energy)
+miss_case_table(energy)
+
+energy %>% group_by(Year) %>% miss_var_summary()
+energy %>% group_by(Year) %>% miss_case_summary()
+
+```
+
+```{r, results='hide'}
+
+### **Consumption**
+
+miss_var_summary(consumption)
+miss_case_summary(consumption)
+miss_var_table(consumption)
+miss_case_table(consumption)
+
+consumption %>% group_by(year) %>% miss_var_summary()
+consumption %>% group_by(year) %>% miss_case_summary()
+
+```
+
+```{r, results='hide', fig.show = 'hide'}
+
+### Display of Missing Data
+
+### **Energy**
+
+vis_miss(energy)
+vis_miss(energy, cluster = TRUE)
+
+```
+
+```{r, results='hide', fig.show='hide'}
+
+### **Consumption**
+
+vis_miss(consumption)
+vis_miss(consumption, cluster = TRUE)
+
+```
+
+```{r, results='hide', fig.show='hide'}
+
+gg_miss_var(energy)
+gg_miss_var(consumption)
+
+```
+
+```{r, results='hide', fig.show='hide'}
+
+gg_miss_var(energy, facet = Country)
+gg_miss_var(consumption, facet = country)
+
+```
+
+```{r, results='hide', fig.show='hide'}
+
+gg_miss_case(energy)
+gg_miss_case(consumption)
+
+```
+
+```{r, results='hide', fig.show='hide'}
+
+gg_miss_case(energy, facet = Country)
+gg_miss_case(consumption, facet = country)
+
+```
+
+```{r, results='hide', fig.show='hide'}
+
+### Missing Patterns
+
+gg_miss_upset(energy)
+gg_miss_upset(consumption)
+
+```
+
+```{r, results='hide', fig.show='hide'}
+
+gg_miss_fct(x=energy, fct=Country)
+gg_miss_fct(x=consumption, fct=country)
+
+```
+
+```{r, results='hide', fig.show='hide'}
+
+### Missing Dependence
+
+### **Energy**
+#Nabulares
+
+bind_shadow(energy, only_miss = TRUE)
+
+```
+
+```{r, results='hide', fig.show='hide'}
+
+### **Consumption**
+
+#Nabulares
+
+bind_shadow(consumption, only_miss = TRUE)
+
+```
+
+```{r, results='hide', fig.show='hide'}
+### Variation in one variable according to shortages in another variable
+
+#Missing Data
+  #Energy_consumption
+  #Energy_production
+  #GDP
+  #CO2_emission
+
+#Possible Variation
+  #Energy_intensity_per_capita
+  #Energy_intensity_by_GDP
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_per_capita, color = Energy_consumption_NA))+
+  geom_density()
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_per_capita, color = Energy_production_NA))+
+  geom_density()
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_per_capita, color = GDP_NA))+
+  geom_density()
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_per_capita, color = CO2_emission_NA))+
+  geom_density()
+
+#Variation
+  #Energy_consumption
+  #Energy_production
+  
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_by_GDP, color = Energy_consumption_NA))+
+  geom_density()
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_by_GDP, color = Energy_production_NA))+
+  geom_density()
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_by_GDP, color = GDP_NA))+
+  geom_density()
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_by_GDP, color = CO2_emission_NA))+
+  geom_density()
+
+#Variation
+  #Energy_consumption
+  #Energy_production
+  #GDP
+  
+```
+
+```{r, results='hide', fig.show='hide'}
+
+### **Consumption**
+
+#Missing
+  #oil_consumption
+  #other_renewable_consumption
+  #renewables_consumption
+  #wind_consumption
+  #solar_consumption
+
+#Possible variation
+  #There is no
+
+```
+
+#### **Imputation**
+
+The most important part of this section is the imputation. To this, we applied different imputation models in new objects and then evaluated them with the Linear Regression method. 
+
+```{r, results='hide'}
+
+### **Energy**
+
+#Below the range
+
+#Look for the range of each variable
+range(energy$Energy_consumption)
+range(energy$Energy_production)
+range(energy$GDP)
+range(energy$CO2_emission)
+
+br_energy <- energy %>%
+  bind_shadow(only_miss = TRUE) %>%
+  add_label_shadow() %>%
+  impute_below_all()
+
+```
+```{r, results='hide'}
+
+#With the mean**
+
+
+mean_energy<- energy%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_mean_all()
+
+```
+
+```{r, results='hide'}
+
+# **With linear regresion**
+
+lm_energy<-energy%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_lm(Energy_consumption ~ Energy_intensity_per_capita + Energy_intensity_by_GDP) %>%
+  impute_lm(Energy_production ~ Energy_intensity_per_capita + Energy_intensity_by_GDP) %>%
+  impute_lm(GDP ~ Energy_intensity_per_capita + Energy_intensity_by_GDP) %>%
+  impute_lm(CO2_emission ~ Energy_intensity_per_capita + Energy_intensity_by_GDP)
+```
+
+```{r, results='hide'}
+# **With the median**
+
+median_energy<- energy%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_median_all()
+
+```
+
+```{r, results='hide'}
+# **With the mode**
+
+modef<-function(x){
+  y<-unique(x)
+  tab<-tabulate(match(x,y))
+  y[tab==max(tab)]
+}
+modef(energy$Energy_consumption)
+modef(energy$Energy_production)
+modef(energy$GDP)
+modef(energy$CO2_emission)
+
+#There is no mode or is 0
+
+```
+
+```{r, results='hide'}
+# **With 0s**
+
+Na_0_en<-energy%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  mutate_if(is.numeric, ~replace(., is.na(.), 0))
+
+```
+
+```{r, results='hide'}
+### **Consumption**
+
+# **Below the range**
+br_consumption<-consumption%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_below_all()
+
+```
+
+```{r, results='hide'}
+# **With the mean**
+
+mean_consumption<-consumption%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_mean_all()
+
+```
+
+```{r, results='hide'}
+# **With the median**
+
+median_consumption<-consumption%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_median_all()
+
+```
+
+```{r, results='hide'}
+# **With the mode**
+
+modef(consumption$oil_consumption)
+modef(consumption$other_renewable_consumption)
+modef(consumption$renewables_consumption)
+modef(consumption$wind_consumption)
+modef(consumption$solar_consumption)
+
+#There is no mode
+
+```
+
+```{r, results='hide'}
+# **With 0s**
+
+Na_0_con<-consumption%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  mutate_if(is.numeric, ~replace(., is.na(.), 0))
+```
+
+```{r}
+
+# **Evaluation of the methods**
+
+### **Energy**
+
+eva_modelos_energy<-bind_rows(br=br_energy,
+                              mean=mean_energy,
+                              lm=lm_energy,
+                              median=median_energy,
+                              Na0=Na_0_en,
+                              .id="imp_model")
+
+model_summary_energy<-eva_modelos_energy%>%
+  group_by(imp_model)%>%
+  nest()%>%
+  mutate(mod=map(data,          ~lm(Energy_intensity_by_GDP~Energy_consumption + Energy_production + GDP + CO2_emission,
+                     data=.)),
+         res=map(mod, residuals),
+         pred=map(mod, predict),
+         tidy=map(mod, broom::tidy))
+
+eval_summary_energy<-model_summary_energy%>%
+  select(imp_model, tidy)%>%
+  unnest()
+
+error_energy<-eval_summary_energy%>%
+  summarize(mean=mean(std.error))%>%
+  arrange(mean)
+
+```
+
+```{r}
+
+### **Consumption**
+
+eva_models_consumption<-bind_rows(br=br_consumption,
+                              mean=mean_consumption,
+                              Na_0 = Na_0_con,
+                              .id="imp_model")
+
+model_summary_consumption<-eva_models_consumption%>%
+  group_by(imp_model)%>%
+  nest()%>%
+  mutate(mod=map(data,          ~lm(renewables_consumption~oil_consumption + other_renewable_consumption + wind_consumption + solar_consumption,
+                     data=.)),
+         res=map(mod, residuals),
+         pred=map(mod, predict),
+         tidy=map(mod, broom::tidy))
+
+eval_summary_consumption<-model_summary_consumption%>%
+  select(imp_model, 
+         tidy)%>%
+  unnest()
+
+error_consumption<-eval_summary_consumption%>%
+  summarize(mean=mean(std.error))%>%
+  arrange(mean)
+
+#In both data bases the best one is Below Range
+
+```
+
+##### **Final imputation**
+
+The criteria we used to select the best imputation model was with the lowest std.error, which was, in both cases, the “Below the Range" method. However, in consumption, we supposed that if there is no data in those countries or years, it is because that kind of energy is not or wasn’t used, so we applied the “0s” method (change all NAs values to 0s) to have a more precise data.
+
+```{r}
+
+energy<-energy%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_below_all()
+
+consumption<-consumption%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  mutate_if(is.numeric, ~replace(., is.na(.), 0))
+
+```
+
+### **Outliers**
+
+Finally, we looked for the outliers in each database and change them for the highest or lowest values that are not considered outliers (values that we calculated). In statistics, we didn’t do this because, if we see the database, we notice that the quantities are not valued in the same units (some refer to terajoules, others to million tons, etc), so we can’t change outliers in that database. 
+
+```{r, results='hide'}
+### **Energy**
+#Mean
+#sd
+#sd*3 +mean
+#every data above those must be changed
+
+mean_en_con<-mean(energy$Energy_consumption)
+sd_en_con<-sd(energy$Energy_consumption)
+
+mean_en_prod<-mean(energy$Energy_production)
+sd_en_prod<-sd(energy$Energy_production)
+
+mean_enGDP<-mean(energy$GDP)
+sd_enGDP<-sd(energy$GDP)
+
+mean_enCO2<-mean(energy$CO2_emission)
+sd_enCO2<-sd(energy$CO2_emission)
+
+mean_en_int<-mean(energy$Energy_intensity_per_capita)
+sd_en_int<-sd(energy$Energy_intensity_per_capita)
+
+mean_en_intGDP<-mean(energy$Energy_intensity_by_GDP)
+sd_en_intGDP<-sd(energy$Energy_intensity_by_GDP)
+
+mean_enPop<-mean(energy$Population)
+sd_enPop<-sd(energy$Population)
+
+
+en_con_upper<-mean_en_con+(3*sd_en_con)
+en_con_lower<-mean_en_con-(3*sd_en_con)
+
+en_prod_upper<-mean_en_prod+(3*sd_en_prod)
+en_prod_lower<-mean_en_prod-(3*sd_en_prod)
+
+enGDP_upper<-mean_enGDP+(3*sd_enGDP)
+enGDP_lower<-mean_enGDP-(3*sd_enGDP)
+
+enCO2_upper<-mean_enCO2+(3*sd_enCO2)
+enCO2_lower<-mean_enCO2-(3*sd_enCO2)
+
+en_int_upper<-mean_en_int+(3*sd_en_int)
+en_int_lower<-mean_en_int-(3*sd_en_int)
+
+en_intGDP_upper<-mean_en_intGDP+(3*sd_en_intGDP)
+en_intGDP_lower<-mean_en_intGDP-(3*sd_en_intGDP)
+
+enPop_upper<-mean_enPop+(3*sd_enPop)
+enPop_lower<-mean_enPop-(3*sd_enPop)
+
+
+filter_outliers_energy<-energy%>%
+  filter(Energy_consumption < en_con_lower | Energy_consumption > en_con_upper | Energy_production < en_prod_lower | Energy_production > en_con_upper | GDP < enGDP_lower | GDP > enGDP_upper | CO2_emission < enCO2_lower | CO2_emission > enCO2_upper | Energy_intensity_per_capita < en_int_lower | Energy_intensity_per_capita > en_int_upper | Energy_intensity_by_GDP < en_intGDP_lower | Energy_intensity_by_GDP > en_intGDP_upper | Population < enPop_lower | Population > enPop_upper)
+
+
+energy$Energy_consumption<-ifelse(energy$Energy_consumption < en_con_lower, en_con_lower, energy$Energy_consumption)
+energy$Energy_consumption<-ifelse(energy$Energy_consumption > en_con_upper, en_con_upper, energy$Energy_consumption)
+
+energy$Energy_production<-ifelse(energy$Energy_production < en_prod_lower, en_prod_lower, energy$Energy_production)
+energy$Energy_production<-ifelse(energy$Energy_production > en_prod_upper, en_prod_upper, energy$Energy_production)
+
+energy$GDP<-ifelse(energy$GDP < enGDP_lower, enGDP_lower, energy$GDP)
+energy$GDP<-ifelse(energy$GDP > enGDP_upper, enGDP_upper, energy$GDP)
+
+energy$CO2_emission<-ifelse(energy$CO2_emission < enCO2_lower, enCO2_lower, energy$CO2_emission)
+energy$CO2_emission<-ifelse(energy$CO2_emission > enCO2_upper, enCO2_upper, energy$CO2_emission)
+
+energy$Energy_intensity_per_capita<-ifelse(energy$Energy_intensity_per_capita < en_int_lower, en_int_lower, energy$Energy_intensity_per_capita)
+energy$Energy_intensity_per_capita<-ifelse(energy$Energy_intensity_per_capita > en_int_lower, en_int_lower, energy$Energy_intensity_per_capita)
+
+energy$Energy_intensity_by_GDP<-ifelse(energy$Energy_intensity_by_GDP < en_intGDP_lower, en_intGDP_lower, energy$Energy_intensity_by_GDP)
+energy$Energy_intensity_by_GDP<-ifelse(energy$Energy_intensity_by_GDP > en_intGDP_upper, en_intGDP_upper, energy$Energy_intensity_by_GDP)
+
+energy$Population<-ifelse(energy$Population < enPop_lower, enPop_lower, energy$Population)
+energy$Population<-ifelse(energy$Population > enPop_upper, enPop_upper, energy$Population)
+
+energy [ energy < 0 ] <- 0
+
+```
+
+```{r}
+
+### **Consumption**
+
+#oil_consumption
+#other_renewable_consumption
+#renewables_consumption
+#wind_consumption
+#solar_consumption
+
+mean_oil_con<-mean(consumption$oil_consumption)
+sd_oil_con<-sd(consumption$oil_consumption)
+
+mean_oth_con<-mean(consumption$other_renewable_consumption)
+sd_oth_con<-sd(consumption$other_renewable_consumption)
+
+mean_ren_con<-mean(consumption$renewables_consumption)
+sd_ren_con<-mean(consumption$renewables_consumption)
+
+mean_win_con<-mean(consumption$wind_consumption)
+sd_win_con<-sd(consumption$wind_consumption)
+
+mean_sol_con<-mean(consumption$solar_consumption)
+sd_sol_con<-sd(consumption$solar_consumption)
+
+
+co_oil_upper<-mean_oil_con+(3*sd_oil_con)
+
+co_oth_upper<-mean_oth_con+(3*sd_oth_con)
+
+co_ren_upper<-mean_ren_con+(3*sd_ren_con)
+
+co_win_upper<-mean_win_con+(3*sd_win_con)
+
+co_sol_upper<-mean_sol_con+(3*sd_sol_con)
+
+
+consumption$oil_consumption<-ifelse(consumption$oil_consumption > co_oil_upper, co_oil_upper, consumption$oil_consumption)
+
+consumption$other_renewable_consumption<-ifelse(consumption$other_renewable_consumption > co_oth_upper, co_oth_upper, consumption$other_renewable_consumption)
+
+consumption$renewables_consumption<-ifelse(consumption$renewables_consumption > co_ren_upper, co_ren_upper, consumption$renewables_consumption)
+
+consumption$wind_consumption<-ifelse(consumption$wind_consumption > co_win_upper, co_win_upper, consumption$wind_consumption)
+
+consumption$solar_consumption<-ifelse(consumption$solar_consumption > co_sol_upper, co_sol_upper, consumption$solar_consumption)
+
+```
+
+# **Analysis**
+
+After the data cleansing, we are going to analyze all this information through tables and graphs, to look for patterns, and insights and take decisions. 
+
+### **Energy Consumption**
+
+First, we want to know what is happening in the variable Energy Consumption from the database Energy, to understand how the selected countries consume some of the energies found in this data frame. The energies presented in this data are:
+
+* Coal
+* Natural Gas
+* Nuclear
+* Petroleum and other liquids
+* Renewables and others. 
+
+We will also see information from 1980 to 2019 from Brazil, Canada, Mexico, Haiti, and Venezuela.
+
+#### **Mean and Standard Deviation**
+
+First, we want to know the mean and standard deviation of all countries and energies, so then we can understand the difference between energies.
+
+```{r}
+
+mean(energy$Energy_consumption)
+sd(energy$Energy_consumption)
+
+```
+
+We saw that the mean is 1.88 and the standard deviation of 2.65.
+
+**For each country**
+
+However, it is also important to see this information divided by country. 
+
+```{r}
+
+group_by(energy, Country)%>%
+  filter(Energy_type!="all_energy_types")%>%
+  summarize(mean=mean(Energy_consumption))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country)%>%
+  filter(Energy_type!="all_energy_types")%>%
+  summarize(sd=sd(Energy_consumption))%>%
+  arrange(desc(sd))
+
+```
+
+We see that the country with the most consumption is Canada, then Brazil, and in the last place is Haiti with a big difference between the first one.
+
+**By country and Energy type**
+
+Finally, we look for the mean and standard deviation divided by country and energy type and ordered this data from the highest consumption to the less. 
+
+```{r}
+
+group_by(energy, Country, Energy_type)%>%
+  filter(Energy_type!="all_energy_types")%>%
+  summarize(mean=mean(Energy_consumption))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country, Energy_type)%>%
+  filter(Energy_type!="all_energy_types")%>%
+  summarize(sd=sd(Energy_consumption))%>%
+  arrange(desc(sd))
+
+```
+
+Canada, Brazil, and Mexico have the most consumption of petroleum, and Haiti has the less in renewables and coal. We also discovered that Haiti doesn’t consume Natural Gas and Nuclear as well as Venezuela.
+
+#### **Distribution**
+
+It is also important to understand the distribution of the data, so we did the following graphs to visualize it. 
+
+```{r}
+
+hist(energy$Energy_consumption)
+
+ggplot(energy, aes(x=Energy_consumption))+
+  geom_histogram()+
+  facet_wrap(~Country)+
+  labs(title="Distribution of Data by country",
+       subtitle="Energy Consumption")
+
+```
+
+In the first one we see the distribution of all the variables `Energy_consumption`, and discovered that has a negative bias, while divided by countries (the second chart) has almost the same behavior except for Canada and Haiti. This means that almost all data are in the first places.
+
+#### **Use of energy in the last year registered for each country**
+
+To visualize in proportions how much consume each country in each energy type, we did the next pie chart, where we discovered that petroleum is the most consumed energy, Haiti has only petroleum and renewable energy, and the second most consumed is natural gas.
+
+```{r}
+
+energy_consumption_2019<-energy%>%
+  filter(Year==2019, Energy_type!="all_energy_types")%>%
+  group_by(Country)%>%
+  mutate(Total=sum(Energy_consumption), Percentage=Energy_consumption/Total*100)
+
+ggplot(data=energy_consumption_2019,aes(x="",y=Percentage, fill=Energy_type))+
+  geom_bar(stat = "identity",color="white")+
+    geom_text(aes(label=percent(Percentage/100)),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta="y")+
+  facet_wrap(~Country)+
+  labs(title="Proportions of energy by country",
+      subtitle="2019")
+
+```
+
+#### **Growth**
+
+The consumption growth of each energy in every country is important to analyze, it will give us information about how much investment and publicity of each energy was made in each country through the years. 
+
+```{r}
+
+energy_consumption_mexico<-energy%>%
+  filter( Country=="Mexico")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_consumption_mexico, mapping=aes(x=Year, y=Energy_consumption, color=Energy_type))+
+  geom_line()+
+  labs(title="Energy Growth in Mexico",
+       subtitle="1980-2019")
+
+energy_consumption_brazil<-energy%>%
+  filter( Country=="Brazil")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_consumption_brazil, mapping=aes(x=Year, y=Energy_consumption, color=Energy_type))+
+  geom_line()+
+  labs(title="Energy Growth in Brazil",
+       subtitle="1980-2019")
+
+energy_consumption_canada<-energy%>%
+  filter( Country=="Canada")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_consumption_canada, mapping=aes(x=Year, y=Energy_consumption, color=Energy_type))+
+  geom_line()+
+  labs(title="Energy Growth in Canada",
+       subtitle="1980-2019")
+
+energy_consumption_venezuela<-energy%>%
+  filter( Country=="Venezuela")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_consumption_venezuela, mapping=aes(x=Year, y=Energy_consumption, color=Energy_type))+
+  geom_line()+
+  labs(title="Energy Growth in Venezuela",
+       subtitle="1980-2019")
+
+energy_consumption_haiti<-energy%>%
+  filter( Country=="Haiti")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_consumption_haiti, mapping=aes(x=Year, y=Energy_consumption, color=Energy_type))+
+  geom_line()+
+  labs(title="Energy Growth in Haiti",
+       subtitle="1980-2019")
+
+```
+
+In Mexico, Natural Gas presents the highest growth, petroleum had a little but started to descend and the other energies doesn’t present a down but neither a growth. In Brazil, Petroleum and renewables had a growth, also Natural Gas but the consumption is less. Canada had a little increase in petroleum and in Natural Gas. Venezuela had a growth in petroleum but then went down, also the same happened with Natural Gas and Renewables but at different times. Finally, in Haiti, the growth of all energies is almost represented only by petroleum with had a very big increase through the years.
+
+### **Energy production**
+
+The other variable we are going to analyze is `Energy_production`, so we can know how much energy is produced in each country and know which ones have the infrastructure to produce it, which ones had an increase, and in which ones we can invest in order to have the highest earnings.
+
+#### **Mean and Standard Deviation**
+
+Again, we want to know the mean and standard deviation, which in this case are 2.48 and 3.48 respectively. 
+
+```{r}
+
+mean(energy$Energy_production)
+sd(energy$Energy_production)
+
+```
+
+**For each country**
+
+Divided by country, Canada again is the biggest producer, and Haiti the smallest. Mexico is in second place. 
+
+```{r}
+
+group_by(energy, Country)%>%
+  filter(Energy_type!= "all_energy_types")%>%
+  summarize(mean=mean(Energy_production))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country)%>%
+  filter(Energy_type!= "all_energy_types")%>%
+  summarize(sd=sd(Energy_production))%>%
+  arrange(desc(sd))
+
+```
+
+**By country and Energy type**
+
+We also discovered that Mexico had been the biggest producer of petroleum and followed by Canada and Venezuela, then Canada with Natural Gas, and in the last places we see Mexico with Nuclear energy and Haiti with renewables. 
+
+```{r}
+
+group_by(energy, Country, Energy_type)%>%
+  filter(Energy_type!= "all_energy_types")%>%
+  summarize(mean=mean(Energy_production))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country, Energy_type)%>%
+  filter(Energy_type!= "all_energy_types")%>%
+  summarize(sd=sd(Energy_production))%>%
+  arrange(desc(sd))
+
+```
+
+#### **Distribution**
+
+When we analyze the distribution, we see almost the same result we saw in `Energy_consumption`, a negative bias.
+
+```{r}
+
+hist(energy$Energy_production)
+
+ggplot(energy, aes(x=Energy_production))+
+  geom_histogram()+
+  facet_wrap(~Country)+
+  labs(title="Distribution of Data by country",
+       subtitle="Energy Production")
+
+```
+
+#### **Production of energy in the last year registered for each country**
+
+```{r}
+
+energy_production_2019<-energy%>%
+  filter(Year==2019, Energy_type!="all_energy_types")%>%
+  group_by(Country)%>%
+  mutate(Total=sum(Energy_production), Percentage=Energy_production/Total*100)
+
+ggplot(data=energy_production_2019,aes(x="",y=Percentage, fill=Energy_type))+
+  geom_bar(stat = "identity",color="white")+
+    geom_text(aes(label=percent(Percentage/100)),
+              position=position_stack(vjust=0.9),color="black",size=2)+
+  coord_polar(theta="y")+
+  facet_wrap(~Country)+
+  labs(title="Proportion of production by energy in each country",
+       subtitle="2019")
+
+```
+
+In how much energy was produced each country in 2019, we found that petroleum is the most produced in Brazil, Canada, Mexico, and Venezuela, Natural Gas is the second most produced in those countries, while almost all production of Haiti was focused on renewables. 
+
+#### **Growth**
+
+```{r}
+
+energy_production_mexico<-energy%>%
+  filter( Country=="Mexico")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_production_mexico, mapping=aes(x=Year, y=Energy_production, color=Energy_type))+
+  geom_line()+
+  labs(title="Energy Production Growth in Mexico",
+       subtitle="1980-2019")
+
+energy_production_brazil<-energy%>%
+  filter( Country=="Brazil")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_production_brazil, mapping=aes(x=Year, y=Energy_production, color=Energy_type))+
+  geom_line()+
+  labs(title="Energy Production Growth in Brazil",
+       subtitle="1980-2019")
+
+energy_production_canada<-energy%>%
+  filter( Country=="Canada")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_production_canada, mapping=aes(x=Year, y=Energy_production, color=Energy_type))+
+  geom_line()+
+  labs(title="Energy Production Growth in Canada",
+       subtitle="1980-2019")
+
+energy_production_venezuela<-energy%>%
+  filter( Country=="Venezuela")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_production_venezuela, mapping=aes(x=Year, y=Energy_production, color=Energy_type))+
+  geom_line()+
+  labs(title="Energy Production Growth in Venezuela",
+       subtitle="1980-2019")
+
+energy_production_haiti<-energy%>%
+  filter( Country=="Haiti")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_production_haiti, mapping=aes(x=Year, y=Energy_production, color=Energy_type))+
+  geom_line()+
+  labs(title="Energy Production Growth in Haiti",
+       subtitle="1980-2019")
+
+```
+
+Analyzing the production growth in each country, we found that in Mexico, petroleum production had decreased in the last years and natural gas started to grow but then went down. Brazil presented a high increase in petroleum and renewables. Canada had a growth in petroleum and a particular behavior in natural gas. Venezuela had a very big decrease in petroleum and Haiti had a high in renewables but started to have a decrease in the last years. 
+
+### **GDP**
+
+It is also important to analyze the GDP by country to see its behavior and in which one is most safe to invest in. We did almost the same calculations as in the other two variables.
+
+#### **Mean and Standard Deviation**
+
+```{r}
+
+mean(energy$GDP)
+sd(energy$GDP)
+
+```
+
+First, the total mean and standard deviation. The mean is 1052 and the standard deviation is 852.
+
+**For each country**
+
+```{r}
+
+group_by(energy, Country)%>%
+  filter(Energy_type!= "all_energy_types")%>%
+  summarize(mean=mean(GDP))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country)%>%
+  filter(Energy_type!= "all_energy_types")%>%
+  summarize(sd=sd(GDP))%>%
+  arrange(desc(sd))
+
+```
+
+Here we see unexpected things, Brazil has the highest GDP, then Mexico, Canada, Venezuela, and finally Haiti. 
+
+#### **Distribution**
+
+In this case, the data distribution behaves a little differently, we can see it has a negative bias but presents almost a normal distribution in the center of the whole data. Brazil and Canada have a normal distribution while Haiti, Mexico, and Venezuela don’t. 
+
+```{r}
+
+hist(energy$GDP)
+
+ggplot(energy, aes(x=GDP))+
+  geom_histogram()+
+  facet_wrap(~Country)+
+  labs(title="Distribution of Data by country",
+       subtitle="GDP")
+
+```
+
+#### **GDP of each country**
+
+Then we see the proportions of GDP in the last year (2019), where Brazil has the highest, then Mexico, Canada, Venezuela, and finally, Haiti is almost invisible. This affirms that maybe the safer place to invest in is Brazil, then Mexico, and finally Canada.
+
+```{r}
+
+GDP_2019<-energy%>%
+  filter(Year==2019, Energy_type=="all_energy_types")%>%
+  mutate(Total=sum(GDP), Percentage=GDP/Total*100)
+
+ggplot(data=GDP_2019,aes(x="",y=Percentage, fill=Country))+
+  geom_bar(stat = "identity",color="white")+
+    geom_text(aes(label=percent(Percentage/100)),
+              position=position_stack(vjust=0.9),color="black",size=2)+
+  coord_polar(theta="y")+
+  labs(title="GDP of each country",
+       subtitle="2019")
+
+```
+
+#### **Growth**
+
+```{r}
+
+energy_GDP_mexico<-energy%>%
+  mutate(Year=as.numeric(Year))
+
+ggplot(data=energy_GDP_mexico, mapping=aes(x=Year, y=GDP))+
+  geom_line()+
+  facet_wrap(~Country)+
+  labs(title="GDP Growth by country")
+
+```
+
+Finally, we visualize the GDP growth in each country. Brazil has the highest increase, then Mexico and finally Canada. Venezuela, by contrast, had a decrease and Haiti almost maintained the same.With this, we can suppose that Brazil will have better development in the following years. 
+
+### **Energy intensity by GDP**
+
+Then we will analyze the `Energy_intensity_by_GDP` variable, where we are going to understand the use of energy depending on the GDP by country. 
+
+#### **Mean and Standard Deviation**
+
+The mean, in this case, is 5.29, while the standard deviation is 3.55, talking about total countries and energies. 
+
+```{r}
+
+mean(energy$Energy_intensity_by_GDP)
+sd(energy$Energy_intensity_by_GDP)
+
+```
+
+**For each country**
+
+Divided by country, we notice that the highest intensity depending on GDP is in Canada and then Venezuela. Haiti again is in the last place.
+
+```{r}
+
+group_by(energy, Country)%>%
+  filter(Energy_type!= "all_energy_types")%>%
+  summarize(mean=mean(Energy_intensity_by_GDP))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country)%>%
+  filter(Energy_type!= "all_energy_types")%>%
+  summarize(sd=sd(Energy_intensity_by_GDP))%>%
+  arrange(desc(sd))
+
+```
+
+#### **Distribution**
+
+```{r}
+
+hist(energy$Energy_intensity_by_GDP)
+
+ggplot(energy, aes(x=Energy_intensity_by_GDP))+
+  geom_histogram()+
+  facet_wrap(~Country)+
+  labs(title="Distribution of Data by country",
+       subtitle="Energy intensity by GDP")
+
+```
+
+The distribution of data is different from others, it presents a little more normal but with a little negative bias. Divided by country, all data has different distributions being Venezuela the one with the “most normal” distribution. 
+
+#### **Growth**
+
+The growth by country of this variable changes a lot. We can see that Mexico and Brazil had maintained the same through the years, Haiti had a little increase, Venezuela presented a high one in the last years and Canada went down. This means that this last one has optimized its energy processes while its GDP had decreased.
+
+```{r}
+
+energy_int_GDP_mexico<-energy%>%
+  mutate(Year=as.numeric(Year))
+
+ggplot(data=energy_int_GDP_mexico, mapping=aes(x=Year, y=Energy_intensity_by_GDP))+
+  geom_line()+
+  facet_wrap(~Country)+
+  labs(title="Energy intensity by GDP growth by country")
+
+```
+
+### **CO2 Emissions**
+
+The last variable we will analyze in this database is `CO2_emissions`, where we will find how much pollution produces each energy.
+
+#### **Mean and Standard Deviation**
+
+The total mean, no matter countries or energies, is 83.6, while its standard deviation is 129. This means there is a lot of variability through registries or that every energy produces different quantities of emissions. 
+
+```{r}
+
+mean(energy$CO2_emission)
+sd(energy$CO2_emission)
+
+```
+
+**For each country**
+
+```{r}
+
+group_by(energy, Country)%>%
+  filter(Energy_type!= "all_energy_types")%>%
+  summarize(mean=mean(CO2_emission))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country)%>%
+  filter(Energy_type!= "all_energy_types")%>%
+  summarize(sd=sd(CO2_emission))%>%
+  arrange(desc(sd))
+
+```
+
+Talking about countries, Canada is the country that produced the most pollution thanks to its energies, then is followed by Mexico, Brazil, Venezuela and finally Haiti, with almost any emissions.
+
+**By country and Energy type**
+
+```{r}
+
+group_by(energy, Country, Energy_type)%>%
+  filter(Energy_type!= "all_energy_types")%>%
+  summarize(mean=mean(CO2_emission))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country, Energy_type)%>%
+  filter(Energy_type!= "all_energy_types")%>%
+  summarize(sd=sd(CO2_emission))%>%
+  arrange(desc(sd))
+
+```
+
+Divided by countries and energy types, Canada, Brazil, and Mexico are the ones who produced the most pollution with petroleum. The last places are Venezuela with Coal and Haiti with coal and natural gas. However, this is also thanks to that, in those places, the production and consumption of those energy types are low. In the end, there are some places that don’t produce any CO2 emission with some energies, this might happen because in those places they don’t produce and consume them. However, there are some places that have these energies and still not polluting, which are:
+
+* Brazil with renewables.
+* Canada with nuclear and renewables.
+* Mexico with nuclear and renewables.
+* Venezuela with renewables.
+
+This tells us that these energies in those countries are friendly to the environment and are well managed in order to don’t produce pollution.
+
+
+#### **Distribution**
+
+The distribution of the data has presented a negative bias, talking about the whole data and dividing by countries. 
+
+```{r}
+
+hist(energy$CO2_emission)
+
+ggplot(energy, aes(x=CO2_emission))+
+  geom_histogram()+
+  facet_wrap(~Country)+
+  labs(title="Distribution of Data by country",
+       subtitle="CO2 emissions")
+
+```
+
+#### **CO2 emissions per energy in the last recorded year for each country**
+
+```{r}
+
+CO2_2019<-energy%>%
+  filter(Year==2019, Energy_type!="all_energy_types")%>%
+  group_by(Country)%>%
+  mutate(Total=sum(CO2_emission), Percentage=CO2_emission/Total*100)
+
+ggplot(data=CO2_2019,aes(x="",y=Percentage, fill=Energy_type))+
+  geom_bar(stat = "identity",color="white")+
+    geom_text(aes(label=percent(Percentage/100)),
+              position=position_stack(vjust=0.9),color="black",size=2)+
+  coord_polar(theta="y")+
+  facet_wrap(~Country)+
+  labs(title="Proportion of CO2 emissions by country",
+       subtitle="2019")
+
+```
+
+Then the proportions in the last year of CO2 emissions by energy type in each country. We see that petroleum is the one that produced the most in 2019 in all countries, then is followed by natural gas and finally by coal. This means that petroleum is very bad for our environment. 
+
+#### **Growth**
+
+```{r}
+
+energy_CO2_mexico<-energy%>%
+  filter( Country=="Mexico")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_CO2_mexico, mapping=aes(x=Year, y=CO2_emission, color=Energy_type))+
+  geom_line()+
+  labs(title="CO2 emissions growth in Mexico",
+       subtitle="1980-2019")
+
+energy_CO2_brazil<-energy%>%
+  filter( Country=="Brazil")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_CO2_brazil, mapping=aes(x=Year, y=CO2_emission, color=Energy_type))+
+  geom_line()+
+  labs(title="CO2 emissions growth in Brazil",
+       subtitle="1980-2019")
+
+energy_CO2_canada<-energy%>%
+  filter( Country=="Canada")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_CO2_canada, mapping=aes(x=Year, y=CO2_emission, color=Energy_type))+
+  geom_line()+
+  labs(title="CO2 emissions growth in Canada",
+       subtitle="1980-2019")
+
+energy_CO2_venezuela<-energy%>%
+  filter( Country=="Venezuela")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_CO2_venezuela, mapping=aes(x=Year, y=CO2_emission, color=Energy_type))+
+  geom_line()+
+  labs(title="CO2 emissions growth in Venezuela",
+       subtitle="1980-2019")
+
+energy_CO2_haiti<-energy%>%
+  filter( Country=="Haiti")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_CO2_haiti, mapping=aes(x=Year, y=CO2_emission, color=Energy_type))+
+  geom_line()+
+  labs(title="CO2 emissions growth in Haiti",
+       subtitle="1980-2019")
+
+```
+
+The growth of emissions by energy type in each country is in these graphs, where we notice that in Mexico, the emissions produced by petroleum are stable and the ones of natural gas had a growth. In Brazil, the emissions of petroleum had a very big growth and the ones of natural gas also did but not at the same dimension. In Canada, petroleum had little growth, and natural as well and coal decreased. In Venezuela, an increase in petroleum and natural gas went down. Finally, the emissions of petroleum in Haiti had a very big growth, renewables stayed and coal decreased. 
+
+### **Some relations**
+
+In this database, we will look for relations between variables by doing correlation graphs between them. 
+
+**Energy consumption and production**
+
+First we have the relation between energy consumption and production, so we can understand if more production means more consumption, and this is divided by country and energy type. 
+
+```{r}
+energy_types<-energy%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_types, mapping=aes(x=Energy_production, y=Energy_consumption, color=Energy_type))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~Country)+
+  labs(title="Energy consumption and production",
+       subtitle="By country")
+
+energy_country<-energy%>%
+  group_by(Country)
+
+ggplot(data=energy_country, mapping=aes(x=Energy_production, y=Energy_consumption, color=Country))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~Energy_type)+
+  labs(title="Energy consumption and production",
+       subtitle="By Energy type")
+
+```
+
+In the first graph we see that actually, in Brazil, more production means more consumption, especially in energies like petroleum and renewables. In Canada happens almost the same but only with petroleum. In Mexico and Venezuela, we can’t see a real relationship between these two variables. In Haiti, there is not enough information. 
+
+Divided by energies we confirm that Brazil has the strongest relationship, which is more visible in renewables. 
+
+**Energy production and GDP**
+
+We also looked for the relationship between energy production and GDP, to visualize if a growth in GDP helps to an increase in energy production. In these graphs (constructed in the same way as the others), we see that there exists a strong relationship, especially in Brazil and Canada, However, not all energies behave the same way. As we can see in the second graph, with coal and nuclear energy, no matter the growth in GDP, the production will maintain almost the same. Finally, in petroleum production, we notice that Brazil, Canada, and Venezuela have a positive relationship. 
+
+```{r}
+
+ggplot(data=energy_types, mapping=aes(x=Energy_production, y=GDP, color=Energy_type))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~Country)+
+  labs(title="Energy production and GDP",
+       subtitle="By Country")
+
+ggplot(data=energy_country, mapping=aes(x=Energy_production, y=GDP, color=Country))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~Energy_type)+
+  labs(title="Energy production and GDP",
+       subtitle="By Energy type")
+
+```
+
+**Energy intensity by GDP and Population**
+
+```{r}
+
+ggplot(data=energy_country, mapping=aes(x=Population, y=Energy_intensity_by_GDP, color=Country))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~Country)+
+  labs(title="Energy intensity by GDP and Population",
+       subtitle="By Country")
+
+```
+
+In this graph, we see that almost all countries have a strong relationship but not a positive one. In Brazil and Mexico, no matter how the population is growing, the energy intensity will maintain almost the same, Canada has a rare behavior, if the population grows, the energy intensity went down. In Venezuela, there is no relation and Haiti is difficult to visualize with this data.
+
+### **Some Energies**
+
+In the second database, Consumption, we will analyze the consumption of other energies not registered in the first one. These ones are:
+* Oil
+* Other renewables
+* Renewables
+* Wind
+* Solar
+
+All these data come from 1900 to 2019. 
+
+#### **Average and Standard Deviation**
+
+The first thing to analyze is again the mean and standard deviation of each energy, where we found that:
+
+```{r}
+
+mean_sd_all_energies<-consumption%>%
+  summarize(mean_oil=mean(oil_consumption), sd_oil=sd(oil_consumption), mean_other_renewable=mean(other_renewable_consumption), sd_other_renewable=sd(other_renewable_consumption), mean_renewables=mean(renewables_consumption), sd_renewables=sd(renewables_consumption), mean_wind=mean(wind_consumption), sd_wind=sd(wind_consumption), mean_solar=mean(solar_consumption), sd_solar=sd(solar_consumption))
+
+mean_sd_all_energies
+
+```
+
+In this database, Oil and renewables had been the most consumed in almost the last one hundred years, no matter the country. 
+
+**For each country**
+
+To know each country’s consumption, we have the next chart where we see that Canada and Brazil have the most consumption of oil and of almost all energies. At this point, we also found that we don’t have information about Haiti.
+
+```{r}
+
+mean_sd_by_country<-consumption%>%
+  group_by(country)%>%
+  summarize(mean_oil=mean(oil_consumption), sd_oil=sd(oil_consumption), mean_other_renewable=mean(other_renewable_consumption), sd_other_renewable=sd(other_renewable_consumption), mean_renewables=mean(renewables_consumption), sd_renewables=sd(renewables_consumption), mean_wind=mean(wind_consumption), sd_wind=sd(wind_consumption), mean_solar=mean(solar_consumption), sd_solar=sd(solar_consumption))
+
+mean_sd_by_country
+
+```
+
+#### **Distribution**
+
+To visualize the data distribution of each energy we did the following histograms where we see that all of them have a negative bias, being almost all registries in the first places.
+
+```{r}
+
+hist(consumption$oil_consumption)
+hist(consumption$other_renewable_consumption)
+hist(consumption$renewables_consumption)
+hist(consumption$wind_consumption)
+hist(consumption$solar_consumption)
+
+```
+
+#### **Energy consumption per country**
+
+The next pie charts tell us the proportion of consumption of each energy type by country in the last registered year (2019). 
+
+```{r}
+
+consumption_2019<-consumption%>%
+  filter(year==2019)%>%
+  group_by(country)
+
+consumption_2019_tb<-tribble(
+  ~Country, ~Energy_type, ~Consumption,
+  "Brazil", "Oil",        1314,
+  "Brazil", "Other_renewable", 59.2,
+  "Brazil", "Renewable",  726,
+  "Brazil", "Wind",       42.786,
+  "Brazil", "Solar",      5.687,
+  "Canada", "Oil",        1250,
+  "Canada", "Other_renewable", 26.8,
+  "Canada", "Renewable",  726,
+  "Canada", "Wind",       42.786,
+  "Canada", "Solar",      5.687,
+  "Haiti",  "Oil",        0,
+  "Haiti",  "Other_renewable", 0,
+  "Haiti",  "Renewable",  0,
+  "Haiti",  "Wind",       0,
+  "Haiti",  "Solar",      0,
+  "Mexico", "Oil",        914,
+  "Mexico", "Other_renewable", 19.2,
+  "Mexico", "Renewable",  155,
+  "Mexico", "Wind",       42.786,
+  "Mexico", "Solar",      5.687,
+  "Venezuela",  "Oil",        196,
+  "Venezuela",  "Other_renewable", 0,
+  "Venezuela",  "Renewable",  157,
+  "Venezuela",  "Wind",       0.366,
+  "Venezuela",  "Solar",      0.029,
+)
+
+consumption_2019_tb<-consumption_2019_tb%>%
+  group_by(Country)%>%
+  mutate(Total=sum(Consumption), Percentage=Consumption/Total*100)
+
+ggplot(data=consumption_2019_tb,aes(x="",y=Percentage, fill=Energy_type))+
+  geom_bar(stat = "identity",color="white")+
+    geom_text(aes(label=percent(Percentage/100)),
+              position=position_stack(vjust=0.9),color="black",size=2)+
+  coord_polar(theta="y")+
+  facet_wrap(~Country)+
+  labs(title="Energy consumption in each country by energy type",
+       subtitle="2019")
+
+
+```
+
+We see that in this database, oil is the most consumed and is followed by renewable energy.  
+
+#### **Growth**
+
+We also looked for the increase in energy by countries through the years.
+
+```{r}
+
+consumption_graphs<-consumption%>%
+  mutate(year=as.numeric(year))%>%
+  filter(year!=121)
+
+ggplot(data=consumption_graphs, mapping=aes(x=year, y=oil_consumption))+
+  geom_line()+
+  facet_wrap(~country)+
+  labs(title="Oil Consumption growth",
+        subtitle="1900-2019")
+
+ggplot(data=consumption_graphs, mapping=aes(x=year, y=other_renewable_consumption))+
+  geom_line( color="turquoise4")+
+  facet_wrap(~country)+
+  labs(title="Other renewables Consumption growth",
+        subtitle="1900-2019")
+
+ggplot(data=consumption_graphs, mapping=aes(x=year, y=renewables_consumption))+
+  geom_line( color="olivedrab3")+
+  facet_wrap(~country)+
+  labs(title="Renewables Consumption growth",
+        subtitle="1900-2019")
+
+ggplot(data=consumption_graphs, mapping=aes(x=year, y=wind_consumption))+
+  geom_line( color="steelblue4")+
+  facet_wrap(~country)+
+  labs(title="Wind Consumption growth",
+        subtitle="1900-2019")
+
+ggplot(data=consumption_graphs, mapping=aes(x=year, y=solar_consumption))+
+  geom_line( color="goldenrod4")+
+  facet_wrap(~country)+
+  labs(title="Solar Consumption growth",
+        subtitle="1900-2019")
+
+```
+
+In oil, we see growth in Brazil, Mexico, and Canada. Venezuela had a little but then went down. With other renewable energies we see that Brazil had a growth, in Canada and Mexico happened the same but also presented some decreases so it is not safe at all a continual growth in the following years, finally, in Venezuela there is not enough information. The behavior with renewables is better, we see that Brazil and Canada had increased their consumption, the same as Mexico and Venezuela but these ones in lower quantities. We notice that wind and solar energy consumption had been growing in the last years in Brazil, Canada, and Mexico.
+
+### **Transactions**
+
+In our last database, we have information about commodity transactions for energy by countries, so we will also analyze this data.
+
+*In which units are measured?*
+
+In this database, we only have one column with numerical data, so it is the one we will analyze statistically. These quantities refer to the transactions of commodities made by countries, however, not all are measured the same so first we will look at the measurements of units.
+
+```{r}
+
+measures<-statistics%>%
+  count(commodity_transaction, unit)%>%
+  select(commodity_transaction, unit)
+
+measures
+
+```
+
+In the last table, we see the different commodities we will analyze as well as the units in which they are measured. 
+
+#### **Average and Standard Deviation**
+
+**Average and Standard Deviation by Commodity Transaction**
+
+With this in mind, we will look at the mean and standard deviation by commodity transaction. 
+
+```{r}
+
+mean_sd_transaction<-statistics%>%
+  group_by(commodity_transaction)%>%
+  summarize(mean=mean(quantity), sd=sd(quantity))%>%
+  merge(measures)
+
+mean_sd_transaction
+
+```
+
+We see that, from the ones measured with the same unit, petroleum coke is the commodity with the most transactions.
+
+**Average and Standard Deviation by Commodity Transaction and country**
+
+```{r}
+
+mean_sd_transaction_country<-statistics%>%
+  group_by(country_or_area, commodity_transaction)%>%
+  summarize(mean=mean(quantity), sd=sd(quantity))%>%
+  merge(measures)%>%
+  arrange(desc(mean))
+
+mean_sd_transaction_country
+
+```
+
+Divided by country and without considering natural gas (the only one measured with different units), Brazil has more transactions with petroleum coke, followed by Mexico and then Canada. Brown coal briquettes have fewer transactions in Mexico from all countries.
+
+#### **Distribution**
+
+Looking at the distribution of data by energy commodity, we see that brown coal and petroleum coke have a distribution with a little negative bias while brown coal briquettes and natural gas have a double peak distribution. 
+
+```{r}
+
+distribution_statistics_brcoal<-statistics%>%
+  filter(commodity_transaction=="Brown coal - final consumption")%>%
+  mutate(year=as.numeric(year))
+
+ggplot(data=distribution_statistics_brcoal, mapping=aes(x=quantity))+
+  geom_histogram(fill="tan4")+
+  labs(title="Distribution Brown coal",
+       subtitle="Transactions")
+
+distribution_statistics_brcoalbriq<-statistics%>%
+  filter(commodity_transaction=="Brown coal briquettes - final consumption")%>%
+  mutate(year=as.numeric(year))
+
+ggplot(data=distribution_statistics_brcoalbriq, mapping=aes(x=quantity))+
+  geom_histogram(fill="tan3")+
+  labs(title="Distribution Brown coal briquettes",
+       subtitle="Transactions")
+
+distribution_statistics_natgas<-statistics%>%
+  filter(commodity_transaction=="Natural gas (including LNG) - final consumption")%>%
+  mutate(year=as.numeric(year))
+
+ggplot(data=distribution_statistics_natgas, mapping=aes(x=quantity))+
+  geom_histogram(fill="seagreen4")+
+  labs(title="Distribution Natural Gas",
+       subtitle="Transactions")
+
+distribution_statistics_pet<-statistics%>%
+  filter(commodity_transaction=="Petroleum coke - final consumption")%>%
+  mutate(year=as.numeric(year))
+
+ggplot(data=distribution_statistics_pet, mapping=aes(x=quantity))+
+  geom_histogram(fill="slategrey")+
+  labs(title="Distribution Petroleum Coke",
+       subtitle="Transactions")
+
+```
+
+#### **Growth**
+
+```{r}
+
+ggplot(data=distribution_statistics_brcoal, mapping=aes(x=year, y=quantity))+
+  geom_line(color="tan4")+
+  facet_wrap(~country_or_area)+
+  labs(title="Brown Coal Growth",
+       subtitle="Transactions")
+
+ggplot(data=distribution_statistics_brcoalbriq, mapping=aes(x=year, y=quantity))+
+  geom_line(color="tan3")+
+  facet_wrap(~country_or_area)+
+  labs(title="Brown Coal Briquettes Growth",
+       subtitle="Transactions")
+
+ggplot(data=distribution_statistics_natgas, mapping=aes(x=year, y=quantity))+
+  geom_line(color="seagreen4")+
+  facet_wrap(~country_or_area)+
+  labs(title="Natural Gas Growth",
+       subtitle="Transactions")
+
+ggplot(data=distribution_statistics_pet, mapping=aes(x=year, y=quantity))+
+  geom_line(color="slategrey")+
+  facet_wrap(~country_or_area)+
+  labs(title="Petroleum Coke Growth",
+       subtitle="Transactions")
+
+```
+
+Talking about transaction growth in each country and by commodity, we see that Canada and Mexico are the only ones with movements of these types. Canada had a growth, then went down but presented a little increase again in the last years. Mexico had been presenting a growth but then a decrease. 
+
+On the other hand, with brown coal briquettes, Mexico is the only one with deals where we see stable behavior and then a really big fall. 
+
+With natural gas, Brazil, Canada and Mexico have movements. The Latin American countries have them in a lower quantity and Brazil is the only one with an increase while Canada has a behavior with a lot of increases and decreases. 
+
+Finally, Brazil, Canada and Mexico are the ones that move petroleum coke, being the first one with the higher increase, Mexico the second and Canada with a stable behavior. 
+
+*Which countries does not have transactions?*
+
+As we saw in the last graphs, not all countries appear, that’s why we will look at the next table to see which ones have transactions of the commodities studied. 
+
+```{r}
+
+country_or_area_transactions<-statistics%>%
+  count(country_or_area)%>%
+  select(country_or_area)
+
+country_or_area_transactions
+
+```
+
+Brazil, Canada and Mexico are the ones that appear, so Haiti and Venezuela don’t have transactions of these energies.
+
+### **Prices**
+
+Finally, we will look at the prices for some of the studied energies to understand their value in the industry. Not all of them are measured in the same units but in the same currency (US dollars). After the investigation, we have the next information.
+
+```{r}
+
+prices<-tribble(
+  ~Energy_type,  ~Unit,                     ~Price, 
+  "Coal",        "US$/TM",                  128,                                     
+  "Natural gas", "US$/Kwh",                 76,     
+  "Petroleum",   "US$ per barrel",          85, 
+  "Nuclear",     "US$/1000 kWh",            73,      
+  "Oil",         "US$ per barrel",          17.220,  
+  "Wind",        "US$/Kwh",                 0.066,
+  "Solar",       "US$/Kwh",                 0.10
+)
+
+prices
+
+```
+
+Of the ones measured in the same unit we see that between petroleum and oil, the last one is cheaper, and between wind, solar and natural gas, wind energy is the cheapest one. 
+
+## **Results and findings**
+
+After doing all this analysis, we will see a summary of the most important insights found in this data:
+
+* Haiti doesn’t consume nuclear energy and Natural Gas.
+* Venezuela doesn’t consume nuclear energy.
+* Petroleum is the most consumed energy in all countries.
+* Haiti’s energy is 97.23% of petroleum and the rest renewables and others.
+* Natural Gas is the second most consumed and then renewables. 
+* The energies with the most growth in consumption are petroleum, natural gas, and renewables.
+* Mexico, Canada, and Venezuela are the biggest producers of petroleum.
+* Haiti doesn’t produce coal, natural gas, nuclear energy, and petroleum.
+* Venezuela, Mexico, and Haiti have a low production of renewable energy. 
+* Haiti consumes big proportions of petroleum, but all its production is focused on renewables. 
+* Petroleum had an increase but started to decrease its production in some countries, Natural Gas had a rare behavior, and renewables in some places had a growth. 
+* Brazil is the country with the highest GDP.
+* Canada has optimized its energy processes while its GDP had decreased.
+* Brazil with renewables, Canada with nuclear and renewables, Mexico with nuclear and renewables, and Venezuela with renewables are energies and countries that don’t produce CO2 emissions.
+* Brazil consumes more energy if produces more, especially in renewables.
+* with coal and nuclear energy, no matter the growth in GDP, the production will maintain almost the same.
+* Renewable energy had been more present in the last years.
+* Petroleum is the energy with most transactions.
+* Brazil, Mexico and Canada have the higher number of transactions with petroleum coke.
+* Oil is cheaper than petroleum.
+* Wind energy is cheaper than solar energy and natural gas.
+
+## **Business recommendations**
+
+With all these in mind, the recommendations for the company AK Nacional del Monte are:
+
+* In Haiti buy renewable energy, which is the one most produced but is not used, so its prices, due to the demand, might be low, with it we can promote the use of renewable energy. It is not recommended to invest in new infrastructure for renewables because there exist but are not well used. 
+* It is safer to invest in Brazil based on its highest GDP.
+* Invest in Canada, Mexico, and Venezuela with renewables because they don’t produce pollution with those energies. 
+* It’s not recommended to invest in nuclear energy because, even if its pollution standards are not that high, it is very dangerous based on past situations with nuclear plants. 
+* It’s not recommended to invest in petroleum due to its high standards of pollution. 
+* Invest in renewable energy in Brazil, in this country the more is produced, the more is consumed. 
+* Invest in renewable energies, they are cheaper, don’t produce CO2 emissions, and had been very present in the last years. It is also important because of the new UN guidelines in order to produce zero pollution. (ONU, 2022).
+* Invest in Brazil in renewable energies because of its growth in consumption. 
+* Invest in infrastructure for wind energy in Brazil, Canada, and Mexico. It might be a very big investment at the beginning (almost $US 123817.69 by wind turbine [Leequid, 2018]) but will help save money through the years as it is the cheaper one.
+
+## **Conclusions**
+
+The result of this report is thanks to the big analysis made of data, where we not only had to do some graphs but understand what we were seeing in databases, clean them, establishing objectives and looking for ways to make the understanding of the information easier and more efficient. It is a hard job but very important in order to take the best decisions and get benefits, not only for us but for everyone and everything around us. 
+
+# **Annexes**
+
+## **Code used**
+
+```{r, echo=TRUE, results='hide', fig.show = 'hide', message = FALSE, warning=FALSE}
+rm(list=ls())
+
+library(dplyr)
+library(forcats)
+library(ggplot2)
+library(naniar)
+library(assertive)
+library(purrr)
+library(stringr)
+library(simputation)
+library(tidyr)
+library(purrr)
+library(tidyverse)
+library(scales)
+
+options(scipen = 999, digits = 3)
+
+energy_or<-read.csv("SP_energy.csv")
+consumption_or<-read.csv("SP_World Energy_Consumption.csv")
+statistics_or<-read.csv("SP_WorldE_all_energy_statistics.csv")
+
+glimpse(energy_or)
+glimpse(consumption_or)
+glimpse(statistics_or)
+
+#Country<-fct
+#Energy_type<-fct
+#Year<-fct
+
+energy<-energy_or%>%
+  mutate(Country=as.factor(Country), Energy_type=as.factor(Energy_type), Year=as.factor(Year))
+
+glimpse(energy)
+
+## Select the necesary
+#iso_code:year, oil_consumption, other_renewable_consumption, renewable_consumption, wind_consumption, solar_consumption.
+
+#iso_code<-fct
+#country<-fct
+#year<-fct
+
+consumption<-consumption_or%>%
+  select(iso_code:year, oil_consumption, other_renewable_consumption, renewables_consumption, wind_consumption, solar_consumption)%>%
+  mutate(iso_code=as.factor(iso_code), country=as.factor(country), year=as.factor(year))
+
+glimpse(consumption)
+
+#Unselect quantity_footnotes
+
+#country_or_area<-fct
+#commodity_transaction<-fct
+#year<-fct
+#unit<-fct
+#category<-fct
+
+statistics<-statistics_or%>%
+  select(-quantity_footnotes)%>%
+  mutate(country_or_area=as.factor(country_or_area), commodity_transaction=as.factor(commodity_transaction), year=as.factor(year), unit=as.factor(unit), category=as.factor(category))
+
+glimpse(statistics)
+
+#Mexico, Brazil, Canada, Venezuela, and Haiti.
+#Energy in the old fashion way, shift to different production methods
+
+energy<-energy%>%
+  filter(Country %in% c("Mexico", "Brazil", "Canada", "Venezuela", "Haiti"))
+
+summary(energy$Energy_type)
+
+consumption<-consumption%>%
+  filter(country %in% c("Mexico", "Brazil", "Canada", "Venezuela", "Haiti"))
+
+statistics<-statistics%>%
+  filter(country_or_area %in% c("Mexico", "Brazil", "Canada", "Venezuela", "Haiti"), str_detect(category, "coal") |  str_detect(category, "natural_gas") | str_detect(category, "nuclear") | str_detect(category, "petroleum") | str_detect(category, "renewables") | str_detect(category, "oil") | str_detect(category, "wind") | str_detect(category, "solar"), str_detect(commodity_transaction, "final consumption"), !str_detect(commodity_transaction, "Other bituminous coal"), !str_detect(commodity_transaction, "Coking coal"), !str_detect(commodity_transaction, "Hard coal"), !str_detect(commodity_transaction, "White spirit and special boiling point industrial spirits"))
+
+group_by(statistics, category)
+
+#Use "contains" in category
+  #All energy
+  #coal
+  #natural_gas
+  #nuclear
+  #petroleum
+  #renewables
+  #oil
+  #wind
+  #solar
+
+glimpse(energy)
+glimpse(consumption)
+glimpse(statistics)
+
+sum(duplicated(energy))
+sum(duplicated(consumption))
+sum(duplicated(statistics))
+
+dup_x <- energy %>% 
+  count(X) %>% 
+  filter(n > 1)
+dup_x
+
+#Country
+#Energy_type
+
+sumcounen <-energy%>%
+  count(Country)
+
+sumcounen
+
+sumeneren<-energy%>%
+  count(Energy_type)
+
+sumeneren
+
+#country
+#iso_code
+
+sumcouncon <-consumption%>%
+  count(country)
+
+sumcouncon
+
+isocon <-consumption%>%
+  count(iso_code)
+
+isocon
+
+#country_or_area
+#commodity_transaction
+#year
+#unit
+#category
+
+counst <-statistics%>%
+  count(country_or_area)
+
+counst
+
+comst <-statistics%>%
+  count(commodity_transaction)
+
+comst
+
+yeast <-statistics%>%
+  count(year)
+
+yeast
+
+unist <-statistics%>%
+  count(unit)
+
+unist
+
+catst <-statistics%>%
+  count(category)
+
+catst
+
+#commodity_transaction
+   # brown coal
+   #others white spirit...
+
+n_miss(energy)
+prop_miss(energy)
+
+n_miss(consumption)
+prop_miss(consumption)
+
+n_miss(statistics)
+prop_miss(statistics)
+
+miss_var_summary(energy)
+miss_case_summary(energy)
+miss_var_table(energy)
+miss_case_table(energy)
+
+energy %>% group_by(Year) %>% miss_var_summary()
+energy %>% group_by(Year) %>% miss_case_summary()
+
+miss_var_summary(consumption)
+miss_case_summary(consumption)
+miss_var_table(consumption)
+miss_case_table(consumption)
+
+consumption %>% group_by(year) %>% miss_var_summary()
+consumption %>% group_by(year) %>% miss_case_summary()
+
+vis_miss(energy)
+vis_miss(energy, cluster = TRUE)
+
+vis_miss(consumption)
+vis_miss(consumption, cluster = TRUE)
+
+gg_miss_var(energy)
+gg_miss_var(consumption)
+
+gg_miss_var(energy, facet = Country)
+gg_miss_var(consumption, facet = country)
+
+gg_miss_case(energy)
+gg_miss_case(consumption)
+
+gg_miss_case(energy, facet = Country)
+gg_miss_case(consumption, facet = country)
+
+gg_miss_upset(energy)
+gg_miss_upset(consumption)
+
+gg_miss_fct(x=energy, fct=Country)
+gg_miss_fct(x=consumption, fct=country)
+
+#Nabulares
+
+bind_shadow(energy, only_miss = TRUE)
+
+#Nabulares
+
+bind_shadow(consumption, only_miss = TRUE)
+
+#Missing Data
+  #Energy_consumption
+  #Energy_production
+  #GDP
+  #CO2_emission
+
+#Possible Variation
+  #Energy_intensity_per_capita
+  #Energy_intensity_by_GDP
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_per_capita, color = Energy_consumption_NA))+
+  geom_density()
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_per_capita, color = Energy_production_NA))+
+  geom_density()
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_per_capita, color = GDP_NA))+
+  geom_density()
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_per_capita, color = CO2_emission_NA))+
+  geom_density()
+
+#Variation
+  #Energy_consumption
+  #Energy_production
+  
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_by_GDP, color = Energy_consumption_NA))+
+  geom_density()
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_by_GDP, color = Energy_production_NA))+
+  geom_density()
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_by_GDP, color = GDP_NA))+
+  geom_density()
+
+energy%>%
+  bind_shadow()%>%
+  ggplot(aes(x = Energy_intensity_by_GDP, color = CO2_emission_NA))+
+  geom_density()
+
+#Variation
+  #Energy_consumption
+  #Energy_production
+  #GDP
+
+#Missing
+  #oil_consumption
+  #other_renewable_consumption
+  #renewables_consumption
+  #wind_consumption
+  #solar_consumption
+
+#Possible variation
+  #There is no
+
+#Look for the range of each variable
+range(energy$Energy_consumption)
+range(energy$Energy_production)
+range(energy$GDP)
+range(energy$CO2_emission)
+
+br_energy <- energy %>%
+  bind_shadow(only_miss = TRUE) %>%
+  add_label_shadow() %>%
+  impute_below_all()
+
+mean_energy<- energy%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_mean_all()
+
+lm_energy<-energy%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_lm(Energy_consumption ~ Energy_intensity_per_capita + Energy_intensity_by_GDP) %>%
+  impute_lm(Energy_production ~ Energy_intensity_per_capita + Energy_intensity_by_GDP) %>%
+  impute_lm(GDP ~ Energy_intensity_per_capita + Energy_intensity_by_GDP) %>%
+  impute_lm(CO2_emission ~ Energy_intensity_per_capita + Energy_intensity_by_GDP)
+
+median_energy<- energy%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_median_all()
+
+modef<-function(x){
+  y<-unique(x)
+  tab<-tabulate(match(x,y))
+  y[tab==max(tab)]
+}
+modef(energy$Energy_consumption)
+modef(energy$Energy_production)
+modef(energy$GDP)
+modef(energy$CO2_emission)
+
+#There is no mode or is 0
+
+Na_0_en<-energy%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  mutate_if(is.numeric, ~replace(., is.na(.), 0))
+
+br_consumption<-consumption%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_below_all()
+
+mean_consumption<-consumption%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_mean_all()
+
+median_consumption<-consumption%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_median_all()
+
+modef(consumption$oil_consumption)
+modef(consumption$other_renewable_consumption)
+modef(consumption$renewables_consumption)
+modef(consumption$wind_consumption)
+modef(consumption$solar_consumption)
+
+#There is no mode
+
+Na_0_con<-consumption%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  mutate_if(is.numeric, ~replace(., is.na(.), 0))
+
+eva_modelos_energy<-bind_rows(br=br_energy,
+                              mean=mean_energy,
+                              lm=lm_energy,
+                              median=median_energy,
+                              Na0=Na_0_en,
+                              .id="imp_model")
+
+model_summary_energy<-eva_modelos_energy%>%
+  group_by(imp_model)%>%
+  nest()%>%
+  mutate(mod=map(data,          ~lm(Energy_intensity_by_GDP~Energy_consumption + Energy_production + GDP + CO2_emission,
+                     data=.)),
+         res=map(mod, residuals),
+         pred=map(mod, predict),
+         tidy=map(mod, broom::tidy))
+
+model_summary_energy
+
+eval_summary_energy<-model_summary_energy%>%
+  select(imp_model, tidy)%>%
+  unnest()
+eval_summary_energy
+
+error_energy<-eval_summary_energy%>%
+  summarize(mean=mean(std.error))%>%
+  arrange(mean)
+
+eva_models_consumption<-bind_rows(br=br_consumption,
+                              mean=mean_consumption,
+                              Na_0 = Na_0_con,
+                              .id="imp_model")
+
+model_summary_consumption<-eva_models_consumption%>%
+  group_by(imp_model)%>%
+  nest()%>%
+  mutate(mod=map(data,          ~lm(renewables_consumption~oil_consumption + other_renewable_consumption + wind_consumption + solar_consumption,
+                     data=.)),
+         res=map(mod, residuals),
+         pred=map(mod, predict),
+         tidy=map(mod, broom::tidy))
+model_summary_consumption
+
+eval_summary_consumption<-model_summary_consumption%>%
+  select(imp_model, 
+         tidy)%>%
+  unnest()
+eval_summary_consumption
+
+error_consumption<-eval_summary_consumption%>%
+  summarize(mean=mean(std.error))%>%
+  arrange(mean)
+
+energy<-energy%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  impute_below_all()
+
+consumption<-consumption%>%
+  bind_shadow(only_miss = TRUE)%>%
+  add_label_shadow()%>%
+  mutate_if(is.numeric, ~replace(., is.na(.), 0))
+
+#Mean
+#sd
+#sd*3 +mean
+#every data above those must be changed
+
+mean_en_con<-mean(energy$Energy_consumption)
+sd_en_con<-sd(energy$Energy_consumption)
+
+mean_en_prod<-mean(energy$Energy_production)
+sd_en_prod<-sd(energy$Energy_production)
+
+mean_enGDP<-mean(energy$GDP)
+sd_enGDP<-sd(energy$GDP)
+
+mean_enCO2<-mean(energy$CO2_emission)
+sd_enCO2<-sd(energy$CO2_emission)
+
+mean_en_int<-mean(energy$Energy_intensity_per_capita)
+sd_en_int<-sd(energy$Energy_intensity_per_capita)
+
+mean_en_intGDP<-mean(energy$Energy_intensity_by_GDP)
+sd_en_intGDP<-sd(energy$Energy_intensity_by_GDP)
+
+mean_enPop<-mean(energy$Population)
+sd_enPop<-sd(energy$Population)
+
+
+en_con_upper<-mean_en_con+(3*sd_en_con)
+en_con_lower<-mean_en_con-(3*sd_en_con)
+
+en_prod_upper<-mean_en_prod+(3*sd_en_prod)
+en_prod_lower<-mean_en_prod-(3*sd_en_prod)
+
+enGDP_upper<-mean_enGDP+(3*sd_enGDP)
+enGDP_lower<-mean_enGDP-(3*sd_enGDP)
+
+enCO2_upper<-mean_enCO2+(3*sd_enCO2)
+enCO2_lower<-mean_enCO2-(3*sd_enCO2)
+
+en_int_upper<-mean_en_int+(3*sd_en_int)
+en_int_lower<-mean_en_int-(3*sd_en_int)
+
+en_intGDP_upper<-mean_en_intGDP+(3*sd_en_intGDP)
+en_intGDP_lower<-mean_en_intGDP-(3*sd_en_intGDP)
+
+enPop_upper<-mean_enPop+(3*sd_enPop)
+enPop_lower<-mean_enPop-(3*sd_enPop)
+
+
+filter_outliers_energy<-energy%>%
+  filter(Energy_consumption < en_con_lower | Energy_consumption > en_con_upper | Energy_production < en_prod_lower | Energy_production > en_con_upper | GDP < enGDP_lower | GDP > enGDP_upper | CO2_emission < enCO2_lower | CO2_emission > enCO2_upper | Energy_intensity_per_capita < en_int_lower | Energy_intensity_per_capita > en_int_upper | Energy_intensity_by_GDP < en_intGDP_lower | Energy_intensity_by_GDP > en_intGDP_upper | Population < enPop_lower | Population > enPop_upper)
+
+
+energy$Energy_consumption<-ifelse(energy$Energy_consumption < en_con_lower, en_con_lower, energy$Energy_consumption)
+energy$Energy_consumption<-ifelse(energy$Energy_consumption > en_con_upper, en_con_upper, energy$Energy_consumption)
+
+energy$Energy_production<-ifelse(energy$Energy_production < en_prod_lower, en_prod_lower, energy$Energy_production)
+energy$Energy_production<-ifelse(energy$Energy_production > en_prod_upper, en_prod_upper, energy$Energy_production)
+
+energy$GDP<-ifelse(energy$GDP < enGDP_lower, enGDP_lower, energy$GDP)
+energy$GDP<-ifelse(energy$GDP > enGDP_upper, enGDP_upper, energy$GDP)
+
+energy$CO2_emission<-ifelse(energy$CO2_emission < enCO2_lower, enCO2_lower, energy$CO2_emission)
+energy$CO2_emission<-ifelse(energy$CO2_emission > enCO2_upper, enCO2_upper, energy$CO2_emission)
+
+energy$Energy_intensity_per_capita<-ifelse(energy$Energy_intensity_per_capita < en_int_lower, en_int_lower, energy$Energy_intensity_per_capita)
+energy$Energy_intensity_per_capita<-ifelse(energy$Energy_intensity_per_capita > en_int_lower, en_int_lower, energy$Energy_intensity_per_capita)
+
+energy$Energy_intensity_by_GDP<-ifelse(energy$Energy_intensity_by_GDP < en_intGDP_lower, en_intGDP_lower, energy$Energy_intensity_by_GDP)
+energy$Energy_intensity_by_GDP<-ifelse(energy$Energy_intensity_by_GDP > en_intGDP_upper, en_intGDP_upper, energy$Energy_intensity_by_GDP)
+
+energy$Population<-ifelse(energy$Population < enPop_lower, enPop_lower, energy$Population)
+energy$Population<-ifelse(energy$Population > enPop_upper, enPop_upper, energy$Population)
+
+energy [ energy < 0 ] <- 0
+
+#oil_consumption
+#other_renewable_consumption
+#renewables_consumption
+#wind_consumption
+#solar_consumption
+
+mean_oil_con<-mean(consumption$oil_consumption)
+sd_oil_con<-sd(consumption$oil_consumption)
+
+mean_oth_con<-mean(consumption$other_renewable_consumption)
+sd_oth_con<-sd(consumption$other_renewable_consumption)
+
+mean_ren_con<-mean(consumption$renewables_consumption)
+sd_ren_con<-mean(consumption$renewables_consumption)
+
+mean_win_con<-mean(consumption$wind_consumption)
+sd_win_con<-sd(consumption$wind_consumption)
+
+mean_sol_con<-mean(consumption$solar_consumption)
+sd_sol_con<-sd(consumption$solar_consumption)
+
+
+co_oil_upper<-mean_oil_con+(3*sd_oil_con)
+
+co_oth_upper<-mean_oth_con+(3*sd_oth_con)
+
+co_ren_upper<-mean_ren_con+(3*sd_ren_con)
+
+co_win_upper<-mean_win_con+(3*sd_win_con)
+
+co_sol_upper<-mean_sol_con+(3*sd_sol_con)
+
+
+consumption$oil_consumption<-ifelse(consumption$oil_consumption > co_oil_upper, co_oil_upper, consumption$oil_consumption)
+
+consumption$other_renewable_consumption<-ifelse(consumption$other_renewable_consumption > co_oth_upper, co_oth_upper, consumption$other_renewable_consumption)
+
+consumption$renewables_consumption<-ifelse(consumption$renewables_consumption > co_ren_upper, co_ren_upper, consumption$renewables_consumption)
+
+consumption$wind_consumption<-ifelse(consumption$wind_consumption > co_win_upper, co_win_upper, consumption$wind_consumption)
+
+consumption$solar_consumption<-ifelse(consumption$solar_consumption > co_sol_upper, co_sol_upper, consumption$solar_consumption)
+
+mean(energy$Energy_consumption)
+sd(energy$Energy_consumption)
+
+group_by(energy, Country)%>%
+  summarize(mean=mean(Energy_consumption))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country)%>%
+  summarize(sd=sd(Energy_consumption))%>%
+  arrange(desc(sd))
+
+group_by(energy, Country, Energy_type)%>%
+  summarize(mean=mean(Energy_consumption))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country, Energy_type)%>%
+  summarize(sd=sd(Energy_consumption))%>%
+  arrange(desc(sd))
+
+hist(energy$Energy_consumption)
+
+ggplot(energy, aes(x=Energy_consumption))+
+  geom_histogram()+
+  facet_wrap(~Country)
+
+energy_consumption_2019<-energy%>%
+  filter(Year==2019, Energy_type!="all_energy_types")%>%
+  group_by(Country)%>%
+  mutate(Total=sum(Energy_consumption), Percentage=Energy_consumption/Total*100)
+
+ggplot(data=energy_consumption_2019,aes(x="",y=Percentage, fill=Energy_type))+
+  geom_bar(stat = "identity",color="white")+
+    geom_text(aes(label=percent(Percentage/100)),
+              position=position_stack(vjust=0.5),color="black",size=2)+
+  coord_polar(theta="y")+
+  facet_wrap(~Country)
+
+energy_consumption_mexico<-energy%>%
+  filter( Country=="Mexico")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_consumption_mexico, mapping=aes(x=Year, y=Energy_consumption, color=Energy_type))+
+  geom_line()
+
+energy_consumption_brazil<-energy%>%
+  filter( Country=="Brazil")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_consumption_brazil, mapping=aes(x=Year, y=Energy_consumption, color=Energy_type))+
+  geom_line()
+
+energy_consumption_canada<-energy%>%
+  filter( Country=="Canada")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_consumption_canada, mapping=aes(x=Year, y=Energy_consumption, color=Energy_type))+
+  geom_line()
+
+energy_consumption_venezuela<-energy%>%
+  filter( Country=="Venezuela")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_consumption_venezuela, mapping=aes(x=Year, y=Energy_consumption, color=Energy_type))+
+  geom_line()
+
+energy_consumption_haiti<-energy%>%
+  filter( Country=="Haiti")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_consumption_haiti, mapping=aes(x=Year, y=Energy_consumption, color=Energy_type))+
+  geom_line()
+
+mean(energy$Energy_production)
+sd(energy$Energy_production)
+
+group_by(energy, Country)%>%
+  summarize(mean=mean(Energy_production))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country)%>%
+  summarize(sd=sd(Energy_production))%>%
+  arrange(desc(sd))
+
+group_by(energy, Country, Energy_type)%>%
+  summarize(mean=mean(Energy_production))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country, Energy_type)%>%
+  summarize(sd=sd(Energy_production))%>%
+  arrange(desc(sd))
+
+hist(energy$Energy_production)
+
+ggplot(energy, aes(x=Energy_production))+
+  geom_histogram()+
+  facet_wrap(~Country)
+
+energy_production_2019<-energy%>%
+  filter(Year==2019, Energy_type!="all_energy_types")%>%
+  group_by(Country)%>%
+  mutate(Total=sum(Energy_production), Percentage=Energy_production/Total*100)
+
+ggplot(data=energy_production_2019,aes(x="",y=Percentage, fill=Energy_type))+
+  geom_bar(stat = "identity",color="white")+
+    geom_text(aes(label=percent(Percentage/100)),
+              position=position_stack(vjust=0.9),color="black",size=2)+
+  coord_polar(theta="y")+
+  facet_wrap(~Country)
+
+energy_production_mexico<-energy%>%
+  filter( Country=="Mexico")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_production_mexico, mapping=aes(x=Year, y=Energy_production, color=Energy_type))+
+  geom_line()
+
+energy_production_brazil<-energy%>%
+  filter( Country=="Brazil")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_production_brazil, mapping=aes(x=Year, y=Energy_production, color=Energy_type))+
+  geom_line()
+
+energy_production_canada<-energy%>%
+  filter( Country=="Canada")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_production_canada, mapping=aes(x=Year, y=Energy_production, color=Energy_type))+
+  geom_line()
+
+energy_production_venezuela<-energy%>%
+  filter( Country=="Venezuela")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_production_venezuela, mapping=aes(x=Year, y=Energy_production, color=Energy_type))+
+  geom_line()
+
+energy_production_haiti<-energy%>%
+  filter( Country=="Haiti")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_production_haiti, mapping=aes(x=Year, y=Energy_production, color=Energy_type))+
+  geom_line()
+
+mean(energy$GDP)
+sd(energy$GDP)
+
+group_by(energy, Country)%>%
+  summarize(mean=mean(GDP))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country)%>%
+  summarize(sd=sd(GDP))%>%
+  arrange(desc(sd))
+
+hist(energy$GDP)
+
+ggplot(energy, aes(x=GDP))+
+  geom_histogram()+
+  facet_wrap(~Country)
+
+GDP_2019<-energy%>%
+  filter(Year==2019, Energy_type=="all_energy_types")%>%
+  mutate(Total=sum(GDP), Percentage=GDP/Total*100)
+
+ggplot(data=GDP_2019,aes(x="",y=Percentage, fill=Country))+
+  geom_bar(stat = "identity",color="white")+
+    geom_text(aes(label=percent(Percentage/100)),
+              position=position_stack(vjust=0.9),color="black",size=2)+
+  coord_polar(theta="y")
+
+energy_GDP_mexico<-energy%>%
+  mutate(Year=as.numeric(Year))
+
+ggplot(data=energy_GDP_mexico, mapping=aes(x=Year, y=GDP))+
+  geom_line()+
+  facet_wrap(~Country)
+
+mean(energy$Energy_intensity_by_GDP)
+sd(energy$Energy_intensity_by_GDP)
+
+group_by(energy, Country)%>%
+  summarize(mean=mean(Energy_intensity_by_GDP))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country)%>%
+  summarize(sd=sd(Energy_intensity_by_GDP))%>%
+  arrange(desc(sd))
+
+hist(energy$Energy_intensity_by_GDP)
+
+ggplot(energy, aes(x=Energy_intensity_by_GDP))+
+  geom_histogram()+
+  facet_wrap(~Country)
+
+energy_int_GDP_mexico<-energy%>%
+  mutate(Year=as.numeric(Year))
+
+ggplot(data=energy_int_GDP_mexico, mapping=aes(x=Year, y=Energy_intensity_by_GDP))+
+  geom_line()+
+  facet_wrap(~Country)
+
+mean(energy$CO2_emission)
+sd(energy$CO2_emission)
+
+group_by(energy, Country)%>%
+  summarize(mean=mean(CO2_emission))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country)%>%
+  summarize(sd=sd(CO2_emission))%>%
+  arrange(desc(sd))
+
+group_by(energy, Country, Energy_type)%>%
+  summarize(mean=mean(CO2_emission))%>%
+  arrange(desc(mean))
+
+group_by(energy, Country, Energy_type)%>%
+  summarize(sd=sd(CO2_emission))%>%
+  arrange(desc(sd))
+
+hist(energy$CO2_emission)
+
+ggplot(energy, aes(x=CO2_emission))+
+  geom_histogram()+
+  facet_wrap(~Country)
+
+CO2_2019<-energy%>%
+  filter(Year==2019, Energy_type!="all_energy_types")%>%
+  group_by(Country)%>%
+  mutate(Total=sum(CO2_emission), Percentage=CO2_emission/Total*100)
+
+ggplot(data=CO2_2019,aes(x="",y=Percentage, fill=Energy_type))+
+  geom_bar(stat = "identity",color="white")+
+    geom_text(aes(label=percent(Percentage/100)),
+              position=position_stack(vjust=0.9),color="black",size=2)+
+  coord_polar(theta="y")+
+  facet_wrap(~Country)
+
+energy_CO2_mexico<-energy%>%
+  filter( Country=="Mexico")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_CO2_mexico, mapping=aes(x=Year, y=CO2_emission, color=Energy_type))+
+  geom_line()
+
+energy_CO2_brazil<-energy%>%
+  filter( Country=="Brazil")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_CO2_brazil, mapping=aes(x=Year, y=CO2_emission, color=Energy_type))+
+  geom_line()
+
+energy_CO2_canada<-energy%>%
+  filter( Country=="Canada")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_CO2_canada, mapping=aes(x=Year, y=CO2_emission, color=Energy_type))+
+  geom_line()
+
+energy_CO2_venezuela<-energy%>%
+  filter( Country=="Venezuela")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_CO2_venezuela, mapping=aes(x=Year, y=CO2_emission, color=Energy_type))+
+  geom_line()
+
+energy_CO2_haiti<-energy%>%
+  filter( Country=="Haiti")%>%
+  mutate(Year=as.numeric(Year))%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_CO2_haiti, mapping=aes(x=Year, y=CO2_emission, color=Energy_type))+
+  geom_line()
+
+energy_types<-energy%>%
+  group_by(Energy_type)
+
+ggplot(data=energy_types, mapping=aes(x=Energy_production, y=Energy_consumption, color=Energy_type))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~Country)
+
+energy_country<-energy%>%
+  group_by(Country)
+
+ggplot(data=energy_country, mapping=aes(x=Energy_production, y=Energy_consumption, color=Country))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~Energy_type)
+
+ggplot(data=energy_types, mapping=aes(x=Energy_production, y=GDP, color=Energy_type))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~Country)
+
+ggplot(data=energy_country, mapping=aes(x=Energy_production, y=GDP, color=Country))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~Energy_type)
+
+ggplot(data=energy_country, mapping=aes(x=Population, y=Energy_intensity_by_GDP, color=Country))+
+  geom_point()+
+  geom_smooth()+
+  facet_wrap(~Country)
+
+mean_sd_all_energies<-consumption%>%
+  summarize(mean_oil=mean(oil_consumption), sd_oil=sd(oil_consumption), mean_other_renewable=mean(other_renewable_consumption), sd_other_renewable=sd(other_renewable_consumption), mean_renewables=mean(renewables_consumption), sd_renewables=sd(renewables_consumption), mean_wind=mean(wind_consumption), sd_wind=sd(wind_consumption), mean_solar=mean(solar_consumption), sd_solar=sd(solar_consumption))
+
+mean_sd_all_energies
+
+mean_sd_by_country<-consumption%>%
+  group_by(country)%>%
+  summarize(mean_oil=mean(oil_consumption), sd_oil=sd(oil_consumption), mean_other_renewable=mean(other_renewable_consumption), sd_other_renewable=sd(other_renewable_consumption), mean_renewables=mean(renewables_consumption), sd_renewables=sd(renewables_consumption), mean_wind=mean(wind_consumption), sd_wind=sd(wind_consumption), mean_solar=mean(solar_consumption), sd_solar=sd(solar_consumption))
+
+mean_sd_by_country
+
+hist(consumption$oil_consumption)
+hist(consumption$other_renewable_consumption)
+hist(consumption$renewables_consumption)
+hist(consumption$wind_consumption)
+hist(consumption$solar_consumption)
+
+consumption_2019<-consumption%>%
+  filter(year==2019)%>%
+  group_by(country)
+
+consumption_2019_tb<-tribble(
+  ~Country, ~Energy_type, ~Consumption,
+  "Brazil", "Oil",        1314,
+  "Brazil", "Other_renewable", 59.2,
+  "Brazil", "Renewable",  726,
+  "Brazil", "Wind",       42.786,
+  "Brazil", "Solar",      5.687,
+  "Canada", "Oil",        1250,
+  "Canada", "Other_renewable", 26.8,
+  "Canada", "Renewable",  726,
+  "Canada", "Wind",       42.786,
+  "Canada", "Solar",      5.687,
+  "Haiti",  "Oil",        0,
+  "Haiti",  "Other_renewable", 0,
+  "Haiti",  "Renewable",  0,
+  "Haiti",  "Wind",       0,
+  "Haiti",  "Solar",      0,
+  "Mexico", "Oil",        914,
+  "Mexico", "Other_renewable", 19.2,
+  "Mexico", "Renewable",  155,
+  "Mexico", "Wind",       42.786,
+  "Mexico", "Solar",      5.687,
+  "Venezuela",  "Oil",        196,
+  "Venezuela",  "Other_renewable", 0,
+  "Venezuela",  "Renewable",  157,
+  "Venezuela",  "Wind",       0.366,
+  "Venezuela",  "Solar",      0.029,
+)
+
+consumption_2019_tb<-consumption_2019_tb%>%
+  group_by(Country)%>%
+  mutate(Total=sum(Consumption), Percentage=Consumption/Total*100)
+
+ggplot(data=consumption_2019_tb,aes(x="",y=Percentage, fill=Energy_type))+
+  geom_bar(stat = "identity",color="white")+
+    geom_text(aes(label=percent(Percentage/100)),
+              position=position_stack(vjust=0.9),color="black",size=2)+
+  coord_polar(theta="y")+
+  facet_wrap(~Country)
+
+consumption_graphs<-consumption%>%
+  mutate(year=as.numeric(year))%>%
+  filter(year!=121)
+
+ggplot(data=consumption_graphs, mapping=aes(x=year, y=oil_consumption))+
+  geom_line()+
+  facet_wrap(~country)
+
+ggplot(data=consumption_graphs, mapping=aes(x=year, y=other_renewable_consumption))+
+  geom_line( color="turquoise4")+
+  facet_wrap(~country)
+
+ggplot(data=consumption_graphs, mapping=aes(x=year, y=renewables_consumption))+
+  geom_line( color="olivedrab3")+
+  facet_wrap(~country)
+
+ggplot(data=consumption_graphs, mapping=aes(x=year, y=wind_consumption))+
+  geom_line( color="steelblue4")+
+  facet_wrap(~country)
+
+ggplot(data=consumption_graphs, mapping=aes(x=year, y=solar_consumption))+
+  geom_line( color="goldenrod4")+
+  facet_wrap(~country)
+
+measures<-statistics%>%
+  count(commodity_transaction, unit)%>%
+  select(commodity_transaction, unit)
+
+measures
+
+mean_sd_transaction<-statistics%>%
+  group_by(commodity_transaction)%>%
+  summarize(mean=mean(quantity), sd=sd(quantity))%>%
+  merge(measures)
+
+mean_sd_transaction
+
+mean_sd_transaction_country<-statistics%>%
+  group_by(country_or_area, commodity_transaction)%>%
+  summarize(mean=mean(quantity), sd=sd(quantity))%>%
+  merge(measures)
+
+mean_sd_transaction_country
+
+distribution_statistics_brcoal<-statistics%>%
+  filter(commodity_transaction=="Brown coal - final consumption")%>%
+  mutate(year=as.numeric(year))
+
+ggplot(data=distribution_statistics_brcoal, mapping=aes(x=quantity))+
+  geom_histogram(fill="tan4")
+
+distribution_statistics_brcoalbriq<-statistics%>%
+  filter(commodity_transaction=="Brown coal briquettes - final consumption")%>%
+  mutate(year=as.numeric(year))
+
+ggplot(data=distribution_statistics_brcoalbriq, mapping=aes(x=quantity))+
+  geom_histogram(fill="tan3")
+
+distribution_statistics_natgas<-statistics%>%
+  filter(commodity_transaction=="Natural gas (including LNG) - final consumption")%>%
+  mutate(year=as.numeric(year))
+
+ggplot(data=distribution_statistics_natgas, mapping=aes(x=quantity))+
+  geom_histogram(fill="seagreen4")
+
+distribution_statistics_pet<-statistics%>%
+  filter(commodity_transaction=="Petroleum coke - final consumption")%>%
+  mutate(year=as.numeric(year))
+
+ggplot(data=distribution_statistics_pet, mapping=aes(x=quantity))+
+  geom_histogram(fill="slategrey")
+
+statistics_2014<-statistics%>%
+  filter(year==2014)%>%
+  group_by(country_or_area)%>%
+  mutate(Total=sum(quantity), Percentage=quantity/Total*100)
+
+ggplot(data=statistics_2014,aes(x="",y=Percentage, fill=commodity_transaction))+
+  geom_bar(stat = "identity",color="white")+
+    geom_text(aes(label=percent(Percentage/100)),
+              position=position_stack(vjust=0.9),color="black",size=2)+
+  coord_polar(theta="y")+
+  facet_wrap(~country_or_area)
+
+ggplot(data=distribution_statistics_brcoal, mapping=aes(x=year, y=quantity))+
+  geom_line(color="tan4")+
+  facet_wrap(~country_or_area)
+
+ggplot(data=distribution_statistics_brcoalbriq, mapping=aes(x=year, y=quantity))+
+  geom_line(color="tan3")+
+  facet_wrap(~country_or_area)
+
+ggplot(data=distribution_statistics_natgas, mapping=aes(x=year, y=quantity))+
+  geom_line(color="seagreen4")+
+  facet_wrap(~country_or_area)
+
+ggplot(data=distribution_statistics_pet, mapping=aes(x=year, y=quantity))+
+  geom_line(color="slategrey")+
+  facet_wrap(~country_or_area)
+
+country_or_area_transactions<-statistics%>%
+  count(country_or_area)%>%
+  select(country_or_area)
+
+country_or_area_transactions
+
+prices<-tribble(
+  ~Energy_type,  ~Unit,                     ~Price, 
+  "Coal",        "US$/TM",                  128,                                     
+  "Natural gas", "$US/Kwh",                 76,     
+  "Petroleum",   "US$ per barrel",          85, 
+  "Nuclear",     "US$/1000 kWh",            73,      
+  "Oil",         "US$ per barrel",          17.220,  
+  "Wind",        "US$/Kwh",                 0.066,
+  "Solar",       "US$/Kwh",                 0.10
+)
+
+prices
+
+```
+
+## **Bibliography**
+
+* Economía Internacional. (2023). Precio del carbón. https://tematicas.org/indicadores-economicos/economia-internacional/precios/precio-carbon-api2-ice/
+
+* Papernest. (2023). Precio del kWh de gas natural en 2023: tarifas actualizadas. https://www.papernest.es/energia/precio-gas-natural/precio-kwh/
+
+* Yaben, M. (2023). Las nucleares fijan en un precio de 67 euros el MWh para acatar el sistema eléctrico de Ribera. https://www.elindependiente.com/economia/2023/01/18/las-nucleares-fijan-en-un-precio-de-67-euros-el-mwh-para-acatar-el-sistema-electrico-de-ribera/
+
+* Villasur, S. (2023). Precio kWh energía eólica ¿electricidad más barata? | Mayo 2023. https://energia.roams.es/energia-renovable/energia-eolica/precio-kwh/#:~:text=Seg%C3%BAn%20informes%20internacionales%2C%20el%20precio,sea%20del%200%2C03%24.
+
+* Enlight. (2023). Energía solar: Perspectiva 2023 en México y el mundo. https://www.enlight.mx/blog/energia-solar-perspectiva-2023-en-mexico-y-el-mundo#fotovoltaica-en-primer-lugar
+
+* UN. (2022). La ONU lanza un plan de acción mundial para impulsar la energía limpia y económica. https://news.un.org/es/story/2022/05/1508092
+
+* Leequid. (2018). ¿Cuánto cuesta un aerogenerador? https://www.elplural.com/leequid/cuanto-cuesta-un-aerogenerador_122287102#:~:text=El%20coste%20para%20un%20aerogenerador,d%C3%ADa%20son%20de%202%20MW.
